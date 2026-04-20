@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="VeloApp - Tu asistente financiero personal. Controla gastos, facturas, créditos, ahorros y más.">
+    <!-- CSP Security (Anti-Hacking) - Updated for Tesseract & Gemini -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://fonts.googleapis.com https://www.gstatic.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data:; connect-src 'self' https://generativelanguage.googleapis.com https://ve.dolarapi.com https://tessdata.projectnaptha.com;">
+    <title>VeloApp - Finanzas Personales</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+
+    <!-- Tesseract.js OCR (no TensorFlow, browser-native OCR) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app-container">
+
+    <!-- ══════════ SPLASH SCREEN ══════════ -->
+    <div id="splash-screen">
+        <div class="splash-logo">
+            <div class="splash-v">V</div>
+            <div class="splash-name">VeloApp</div>
+            <div class="splash-sub">Tu asistente financiero</div>
+        </div>
+        <div class="splash-ring"></div>
+        <div class="splash-ring splash-ring-2"></div>
+    </div>
+
+    <!-- ══════════ MAIN APP ══════════ -->
+    <div id="main-app" class="hidden">
+
+        <!-- HEADER -->
+        <header id="top-header">
+            <div class="logo-area">
+                <div class="logo-icon">V</div>
+                <div class="logo-text">
+                    <span class="logo-title">VeloApp</span>
+                    <span id="current-date"></span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" id="rates-btn" title="Tasas de Cambio">
+                    <span class="material-icons-outlined">currency_exchange</span>
+                </button>
+                <button class="icon-btn" id="home-btn" title="Inicio">
+                    <span class="material-icons-outlined">home</span>
+                </button>
+                <button class="icon-btn" id="notif-btn" title="Recordatorios">
+                    <span class="material-icons-outlined">notifications</span>
+                    <span class="notif-badge" id="notif-badge" style="display:none">!</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- TOP NAV (3 opciones arriba) -->
+        <nav id="top-nav">
+            <button class="nav-btn" data-view="scanner" id="nav-scanner">
+                <span class="material-icons-outlined">document_scanner</span>
+                <span>Facturas</span>
+                <div class="nav-indicator"></div>
+            </button>
+            <button class="nav-btn" data-view="gastos" id="nav-gastos">
+                <span class="material-icons-outlined">receipt_long</span>
+                <span>Gastos</span>
+                <div class="nav-indicator"></div>
+            </button>
+            <button class="nav-btn" data-view="clientes" id="nav-clientes">
+                <span class="material-icons-outlined">people</span>
+                <span>Clientes</span>
+                <div class="nav-indicator"></div>
+            </button>
+        </nav>
+
+        <!-- BLACK STRIPE TOP -->
+        <div class="black-stripe"></div>
+
+        <!-- MAIN CONTENT AREA -->
+        <main id="content-area">
+            <!-- Views rendered here by JS -->
+        </main>
+
+        <!-- BLACK STRIPE BOTTOM -->
+        <div class="black-stripe"></div>
+
+        <!-- BOTTOM NAV (4 opciones abajo) -->
+        <nav id="bottom-nav">
+            <button class="nav-btn" data-view="creditos" id="nav-creditos">
+                <span class="material-icons-outlined">credit_card</span>
+                <span>Créditos</span>
+                <div class="nav-indicator"></div>
+            </button>
+            <button class="nav-btn" data-view="ahorros" id="nav-ahorros">
+                <span class="material-icons-outlined">savings</span>
+                <span>Ahorros</span>
+                <div class="nav-indicator"></div>
+            </button>
+            <button class="nav-btn" data-view="horarios" id="nav-horarios">
+                <span class="material-icons-outlined">schedule</span>
+                <span>Horarios</span>
+                <div class="nav-indicator"></div>
+            </button>
+            <button class="nav-btn" data-view="ingresos" id="nav-ingresos">
+                <span class="material-icons-outlined">attach_money</span>
+                <span>Ingresos</span>
+                <div class="nav-indicator"></div>
+            </button>
+        </nav>
+
+    </div><!-- end main-app -->
+
+</div><!-- end app-container -->
+
+<!-- GLOBAL MODAL -->
+<div id="modal-overlay" class="modal-overlay hidden">
+    <div id="modal-box" class="modal-box">
+        <div id="modal-content"></div>
+    </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="security.js"></script>
+<script src="ai_service.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

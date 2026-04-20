@@ -1,0 +1,26 @@
+[project]
+name = "veloapp"
+version = "1.0.0"
+description = "Gestor de Finanzas Personal"
+requires-python = ">=3.9"
+dependencies = [
+    "flet>=0.25.0",
+    "pillow>=10.0.0",
+    "requests>=2.31.0",
+]
+
+[tool.flet]
+product = "VeloApp"
+org = "ve.veloapp"
+description = "Organiza tus finanzas personales"
+
+[tool.flet.android]
+permissions = [
+    "android.permission.CAMERA",
+    "android.permission.READ_EXTERNAL_STORAGE",
+    "android.permission.WRITE_EXTERNAL_STORAGE",
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.INTERNET",
+    "android.permission.SCHEDULE_EXACT_ALARM",
+    "android.permission.READ_MEDIA_IMAGES",
+]

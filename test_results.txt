@@ -1,0 +1,8 @@
+home: OK
+scanner: OK
+gastos: OK
+clientes: OK
+creditos: OK
+ahorros: OK
+horarios: OK
+ingresos: OK
