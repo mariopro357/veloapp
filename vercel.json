@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "public": true,
+  "name": "veloapp-web",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/frontend/$1" }
+  ]
+}
