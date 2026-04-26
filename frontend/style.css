@@ -1,48 +1,55 @@
 /* ══════════════════════════════════════
-   VELOAPP — DESIGN SYSTEM
-   Dark Navy Blue | Black Stripes | Elegant
+   VELOAPP — DESIGN SYSTEM v2
+   Business Blue | Warm Accents | Premium
    ══════════════════════════════════════ */
 
 :root {
-    /* Palette */
-    --navy-deep:    #0a1628;
-    --navy-dark:    #0d1f3c;
-    --navy-mid:     #142444;
-    --navy-light:   #1a2f57;
-    --navy-bright:  #1e3a6e;
-    --accent:       #2d7dd2;
-    --accent-glow:  #4a9eff;
-    --accent-soft:  rgba(45, 125, 210, 0.15);
-    --black-stripe: #050810;
-    --success:      #22c55e;
-    --warning:      #f59e0b;
-    --danger:       #ef4444;
-    --gold:         #fbbf24;
+    /* Paleta azul neutro empresarial (no agresivo) */
+    --navy-deep:    #0f1923;
+    --navy-dark:    #131f2e;
+    --navy-mid:     #192840;
+    --navy-light:   #1f3251;
+    --navy-bright:  #263d60;
+    --accent:       #3a7bd5;
+    --accent-glow:  #5b9fe0;
+    --accent-soft:  rgba(58, 123, 213, 0.13);
+    --black-stripe: #080d13;
 
-    /* Text */
-    --text-primary:   #f0f4ff;
-    --text-secondary: #7a90b5;
-    --text-muted:     #4a5f80;
+    /* Colores cálidos para equilibrar */
+    --warm-amber:   #d97706;
+    --warm-amber-s: rgba(217,119,6,0.15);
+    --warm-cream:   #fef3c7;
+
+    /* Estado */
+    --success:      #16a34a;
+    --warning:      #d97706;
+    --danger:       #dc2626;
+    --gold:         #f59e0b;
+
+    /* Texto */
+    --text-primary:   #e8edf5;
+    --text-secondary: #7d95b5;
+    --text-muted:     #4d6282;
 
     /* Glass */
-    --glass-bg:     rgba(20, 36, 68, 0.85);
-    --glass-border: rgba(45, 125, 210, 0.2);
-    --glass-shine:  rgba(255,255,255,0.04);
+    --glass-bg:     rgba(19, 31, 46, 0.90);
+    --glass-border: rgba(58, 123, 213, 0.18);
+    --glass-shine:  rgba(255,255,255,0.03);
 
-    /* Navigation */
-    --nav-height:   68px;
-    --header-height: 60px;
-    --stripe-height: 4px;
+    /* Layout */
+    --nav-height:    64px;
+    --header-height: 58px;
+    --stripe-height: 3px;
 
-    /* Fonts */
-    --font-title:  'Playfair Display', Georgia, serif;
-    --font-body:   'Inter', system-ui, sans-serif;
+    /* Tipografía */
+    --font-title: 'Outfit', system-ui, sans-serif;
+    --font-body:  'Inter', system-ui, sans-serif;
 
-    /* Radius */
+    /* Radio */
     --r-sm: 8px;
-    --r-md: 14px;
-    --r-lg: 20px;
-    --r-xl: 28px;
+    --r-md: 12px;
+    --r-lg: 18px;
+    --r-xl: 24px;
 }
 
 /* ══════════ RESET & BASE ══════════ */
@@ -55,10 +62,13 @@ body {
     background: var(--navy-deep);
     color: var(--text-primary);
     min-height: 100dvh;
+    max-height: 100dvh;
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 button {
@@ -111,13 +121,30 @@ h1, h2, h3 { font-family: var(--font-title); font-weight: 700; }
 #splash-screen {
     position: fixed;
     inset: 0;
-    background: radial-gradient(ellipse at center, #0f2040 0%, #050810 100%);
+    background: radial-gradient(ellipse at center, #152640 0%, #080d13 100%);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 9999;
-    animation: splashFadeOut 0.6s ease 2s forwards;
+    animation: splashFadeOut 0.6s ease 2.2s forwards;
+    overflow: hidden;
+}
+
+/* Marca de agua discreta */
+.watermark {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-title);
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.10);
+    letter-spacing: 3px;
+    pointer-events: none;
+    user-select: none;
+    text-transform: lowercase;
 }
 
 .splash-logo {
@@ -128,10 +155,10 @@ h1, h2, h3 { font-family: var(--font-title); font-weight: 700; }
 
 .splash-v {
     font-family: var(--font-title);
-    font-size: 80px;
-    font-weight: 700;
+    font-size: 84px;
+    font-weight: 900;
     color: var(--accent-glow);
-    text-shadow: 0 0 40px rgba(74,158,255,0.8), 0 0 80px rgba(74,158,255,0.3);
+    text-shadow: 0 0 40px rgba(91,159,224,0.7), 0 0 80px rgba(91,159,224,0.25);
     line-height: 1;
 }
 
@@ -152,16 +179,16 @@ h1, h2, h3 { font-family: var(--font-title); font-weight: 700; }
 
 .splash-ring {
     position: absolute;
-    border: 1px solid rgba(45,125,210,0.25);
+    border: 1px solid rgba(91,159,224,0.2);
     border-radius: 50%;
-    width: 220px; height: 220px;
+    width: 210px; height: 210px;
     animation: ringExpand 2s ease-out infinite;
 }
 
 .splash-ring-2 {
-    width: 320px; height: 320px;
-    animation-delay: 0.7s;
-    opacity: 0.5;
+    width: 300px; height: 300px;
+    animation-delay: 0.8s;
+    opacity: 0.4;
 }
 
 @keyframes splashFadeOut {
@@ -178,13 +205,37 @@ h1, h2, h3 { font-family: var(--font-title); font-weight: 700; }
 
 /* ══════════ APP CONTAINER ══════════ */
 #app-container {
+    width: 100%;
     max-width: 480px;
     margin: 0 auto;
     height: 100dvh;
+    height: 100svh;
     display: flex;
     flex-direction: column;
     position: relative;
     overflow: hidden;
+}
+
+/* Banner offline */
+.offline-banner {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: rgba(220,38,38,0.92);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    z-index: 9000;
+    backdrop-filter: blur(4px);
 }
 
 #main-app {
@@ -1068,9 +1119,15 @@ h1, h2, h3 { font-family: var(--font-title); font-weight: 700; }
 }
 
 .alert-success {
-    background: rgba(34,197,94,0.1);
-    border: 1px solid rgba(34,197,94,0.2);
+    background: rgba(22,163,74,0.1);
+    border: 1px solid rgba(22,163,74,0.2);
     color: var(--success);
+}
+
+.alert-danger {
+    background: rgba(220,38,38,0.1);
+    border: 1px solid rgba(220,38,38,0.25);
+    color: var(--danger);
 }
 
 /* ══════════ DIVIDER ══════════ */
@@ -1158,4 +1215,297 @@ h1, h2, h3 { font-family: var(--font-title); font-weight: 700; }
         border-right: 1px solid var(--glass-border);
         box-shadow: 0 0 60px rgba(0,0,0,0.5);
     }
+}
+
+/* Prevenir overflow horizontal en toda la app */
+* { max-width: 100%; box-sizing: border-box; }
+img, video, canvas { max-width: 100%; height: auto; }
+
+/* Botones con texto largo no se salen */
+.btn, .nav-btn, .shortcut-btn {
+    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Cards no se derraman */
+.card, .stat-card {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Listas no desbordan */
+.list-item-title, .job-desc {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Pantallas medianas - iPhone 12/13 mini, Samsung Galaxy A series */
+@media (max-width: 390px) {
+    :root {
+        --nav-height: 58px;
+        --header-height: 54px;
+    }
+    html { font-size: 14px; }
+
+    .logo-title { font-size: 16px; }
+    #current-date { font-size: 10px; }
+    .logo-icon { width: 32px; height: 32px; font-size: 18px; }
+    .icon-btn { width: 34px; height: 34px; }
+
+    .nav-btn { font-size: 9px; padding: 6px 2px 5px; }
+    .nav-btn .material-icons-outlined { font-size: 20px; }
+    .nav-btn span:last-of-type { font-size: 9px; letter-spacing: 0; }
+
+    #content-area { padding: 12px; }
+
+    .section-title { font-size: 17px; margin-bottom: 10px; }
+    .card { padding: 12px; border-radius: 14px; margin-bottom: 10px; }
+    .stat-card { padding: 10px 12px; border-radius: 10px; }
+    .stat-card .value { font-size: 16px; }
+    .stat-card .label { font-size: 10px; }
+    .stats-grid { gap: 8px; margin-bottom: 10px; }
+
+    .home-greeting { font-size: 20px; }
+    .home-sub { font-size: 12px; margin-bottom: 12px; }
+
+    .shortcut-btn { padding: 8px 2px; font-size: 9px; border-radius: 10px; }
+    .shortcut-btn .material-icons-outlined { font-size: 18px; }
+
+    .btn { padding: 11px 14px; font-size: 13px; }
+    .form-label { font-size: 11px; }
+    input, textarea, select { font-size: 14px; padding: 10px 12px; }
+
+    .list-item-title { font-size: 13px; }
+    .list-item-sub { font-size: 11px; }
+    .list-item-icon { width: 36px; height: 36px; }
+
+    .modal-box { border-radius: 18px 18px 0 0; max-height: 88dvh; }
+    .modal-title { font-size: 16px; }
+
+    .job-amount { font-size: 14px; }
+    .job-desc { font-size: 13px; }
+    .job-date { font-size: 11px; }
+
+    .client-avatar { width: 38px !important; height: 38px !important; font-size: 17px !important; }
+
+    .section-title .material-icons-outlined { font-size: 20px; }
+}
+
+/* Pantallas muy pequeñas - iPhone SE 1gen, Samsung Galaxy mini */
+@media (max-width: 340px) {
+    :root {
+        --nav-height: 54px;
+        --header-height: 50px;
+    }
+    html { font-size: 13px; }
+
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .stat-card .value { font-size: 15px; }
+    .nav-btn span:last-of-type { display: none; }
+    .nav-btn .material-icons-outlined { font-size: 22px; }
+    .nav-btn { padding: 8px 2px; }
+
+    .home-greeting { font-size: 18px; }
+    #content-area { padding: 10px; }
+    .card { padding: 10px; margin-bottom: 8px; }
+
+    .shortcut-btn .material-icons-outlined { font-size: 20px; }
+    .shortcuts-grid { gap: 6px; }
+}
+
+/* ══════════ COMPONENTES ADICIONALES ══════════ */
+
+/* Botón icono con texto — créditos */
+.btn-icon-text {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-soft);
+    color: var(--accent-glow);
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.btn-icon-text:active { transform: scale(0.93); }
+
+/* Tags manuales del scanner */
+.manual-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-soft);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 5px 10px 5px 12px;
+    margin: 4px 4px 4px 0;
+    font-size: 13px;
+}
+.manual-tag-name { color: var(--text-primary); font-weight: 500; }
+.manual-tag-price { color: var(--accent-glow); font-weight: 700; }
+.manual-tag-del {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: rgba(220,38,38,0.15);
+    color: var(--danger);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Nav labels — no cortarse en pantallas angostas */
+#top-nav .nav-btn span:not(.material-icons-outlined):not(.nav-indicator),
+#bottom-nav .nav-btn span:not(.material-icons-outlined):not(.nav-indicator) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 56px;
+    display: block;
+}
+
+/* Stat-card value responsive */
+.stat-card .value {
+    font-family: var(--font-title);
+    font-size: 19px;
+    font-weight: 800;
+    display: block;
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Acceso rápido con colores cálidos opcionales */
+.shortcut-btn:hover {
+    background: rgba(58,123,213,0.12);
+    border-color: var(--accent-glow);
+    color: var(--accent-glow);
+}
+
+/* ══════════ GASTOS SEMANALES ══════════ */
+
+.week-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.25);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--danger);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.week-total-big {
+    font-family: var(--font-title);
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--danger);
+    line-height: 1;
+    margin: 4px 0 2px;
+}
+
+.week-archive-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 6px;
+    user-select: none;
+}
+
+.week-archive-header:active { background: rgba(45,125,210,0.06); }
+
+.week-archive-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.week-archive-label .material-icons-outlined {
+    font-size: 16px;
+    color: var(--text-muted);
+}
+
+.week-archive-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.week-archive-total {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--danger);
+}
+
+.week-archive-chevron {
+    font-size: 18px !important;
+    color: var(--text-muted);
+    transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+
+.week-archive-chevron.open { transform: rotate(180deg); }
+
+.week-archive-panel {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease;
+    opacity: 0;
+    margin-bottom: 0;
+}
+
+.week-archive-panel.open {
+    max-height: 2000px;
+    opacity: 1;
+    margin-bottom: 10px;
+}
+
+.week-archive-inner {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--r-md);
+    padding: 6px 0;
+    margin-top: 2px;
+}
+
+.week-history-sep {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 16px 0 10px;
+}
+
+.week-history-sep-line {
+    flex: 1;
+    height: 1px;
+    background: var(--glass-border);
+}
+
+.week-history-sep-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
 }

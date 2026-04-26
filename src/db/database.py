@@ -73,7 +73,7 @@ def init_db():
                 fecha       TEXT    NOT NULL,
                 descripcion TEXT    NOT NULL,
                 monto       REAL    NOT NULL,
-                estado      TEXT    DEFAULT 'en_espera',
+                estado      TEXT    DEFAULT 'pendiente',
                 created_at  TEXT    DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
             );
@@ -112,6 +112,32 @@ def init_db():
             );
         """)
 
+        # Migraciones / actualizaciones de esquemas existentes
+        # Asegurar columnas nuevas en trabajos_cliente
+        try:
+            conn.execute("ALTER TABLE trabajos_cliente ADD COLUMN monto_pagado REAL DEFAULT 0")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE trabajos_cliente ADD COLUMN fecha_pago TEXT")
+        except Exception:
+            pass
+        # Crear tabla de pagos por trabajo (para registrar abonos parciales)
+        try:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS pagos_trabajo (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    trabajo_id INTEGER NOT NULL,
+                    monto REAL NOT NULL,
+                    fecha TEXT NOT NULL,
+                    FOREIGN KEY (trabajo_id) REFERENCES trabajos_cliente(id) ON DELETE CASCADE
+                );
+                """
+            )
+        except Exception:
+            pass
+
 
 # =========================================================
 # CONFIGS DE USUARIO
@@ -131,6 +157,91 @@ def get_config(key: str, default=None):
             "SELECT value FROM user_config WHERE key=?", (key,)
         ).fetchone()
     return row["value"] if row else default
+
+
+# =========================================================
+# ABONOS A TRABAJOS
+# =========================================================
+
+def pagar_trabajo(trabajo_id: int, monto: float):
+    with get_connection() as conn:
+        # Registrar abono
+        now = __import__('datetime').datetime.now().strftime("%Y-%m-%d")
+        conn.execute(
+            "UPDATE trabajos_cliente SET monto_pagado = COALESCE(monto_pagado, 0) + ?, fecha_pago = ? WHERE id=?",
+            (monto, now, trabajo_id)
+        )
+        # Añadir registro de pago en historia
+        conn.execute(
+            "INSERT INTO pagos_trabajo (trabajo_id, monto, fecha) VALUES (?,?,?)",
+            (trabajo_id, monto, now)
+        )
+        # Actualizar estado si ya se pagó por completo
+        row = conn.execute("SELECT monto, monto_pagado FROM trabajos_cliente WHERE id=?", (trabajo_id,)).fetchone()
+        if row and row["monto_pagado"] >= row["monto"]:
+            conn.execute("UPDATE trabajos_cliente SET estado='pagado' WHERE id=?", (trabajo_id,))
+
+
+def get_gastos_semana():
+    now = __import__('datetime').datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(monto), 0) AS total FROM gastos WHERE strftime('%W', fecha) = strftime('%W', ?) AND strftime('%Y', fecha) = strftime('%Y', ?)",
+            (date_str, date_str)
+        ).fetchone()
+    return float(row["total"])
+
+
+def get_gastos_semana_all():
+    return get_gastos_semana()
+
+
+def get_ingresos_semana():
+    now = __import__('datetime').datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(p.monto), 0) AS total FROM pagos_trabajo p WHERE strftime('%W', p.fecha) = strftime('%W', ?) AND strftime('%Y', p.fecha) = strftime('%Y', ?)",
+            (date_str, date_str)
+        ).fetchone()
+    return float(row["total"])
+
+
+def get_ingresos_mes():
+    now = __import__('datetime').datetime.now()
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(p.monto), 0) AS total FROM pagos_trabajo p WHERE strftime('%Y-%m', p.fecha) = strftime('%Y-%m', ?)",
+            (now.strftime("%Y-%m-%d"),)
+        ).fetchone()
+    return float(row["total"])
+
+
+def get_total_ingresos_alltime():
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(monto_pagado), 0) AS total FROM trabajos_cliente"
+        ).fetchone()
+    return float(row["total"])
+
+
+def get_disponible():
+    with get_connection() as conn:
+        total_pagado_row = conn.execute("SELECT COALESCE(SUM(monto_pagado), 0) AS total FROM trabajos_cliente").fetchone()
+        total_gastos_row = conn.execute("SELECT COALESCE(SUM(monto), 0) AS total FROM gastos").fetchone()
+    total_pagado = float(total_pagado_row["total"]) if total_pagado_row else 0.0
+    total_gastos = float(total_gastos_row["total"]) if total_gastos_row else 0.0
+    return float(total_pagado - total_gastos)
+
+
+def get_total_pendiente_cliente(cliente_id: int) -> float:
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(monto - IFNULL(monto_pagado, 0)), 0) AS total FROM trabajos_cliente WHERE cliente_id=?",
+            (cliente_id,)
+        ).fetchone()
+    return float(row["total"])
 
 
 # =========================================================
@@ -242,8 +353,8 @@ def create_trabajo(cliente_id: int, descripcion: str, monto: float) -> int:
     now = datetime.now()
     with get_connection() as conn:
         cursor = conn.execute(
-            "INSERT INTO trabajos_cliente (cliente_id, fecha, descripcion, monto, estado) VALUES (?,?,?,?,?)",
-            (cliente_id, now.strftime("%Y-%m-%d"), descripcion, monto, "en_espera")
+            "INSERT INTO trabajos_cliente (cliente_id, fecha, descripcion, monto, monto_pagado, estado) VALUES (?,?,?,?,?,?)",
+            (cliente_id, now.strftime("%Y-%m-%d"), descripcion, monto, 0, "pendiente")
         )
         return cursor.lastrowid
 
@@ -254,7 +365,15 @@ def get_trabajos_cliente(cliente_id: int) -> list:
             "SELECT * FROM trabajos_cliente WHERE cliente_id=? ORDER BY created_at DESC",
             (cliente_id,)
         ).fetchall()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        d = dict(r)
+        mp = d.get("monto_pagado") or 0
+        d["monto_pagado"] = float(mp)
+        restante = d.get("monto") - d["monto_pagado"]
+        d["restante"] = float(restante if restante >= 0 else 0)
+        result.append(d)
+    return result
 
 
 def update_trabajo_estado(trabajo_id: int, estado: str):
@@ -272,8 +391,8 @@ def delete_trabajo(trabajo_id: int):
 def get_total_pendiente_cliente(cliente_id: int) -> float:
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT COALESCE(SUM(monto), 0) AS total FROM trabajos_cliente "
-            "WHERE cliente_id=? AND estado='en_espera'",
+            "SELECT COALESCE(SUM(monto - COALESCE(monto_pagado, 0)), 0) AS total FROM trabajos_cliente "
+            "WHERE cliente_id=? AND estado='pendiente'",
             (cliente_id,)
         ).fetchone()
     return float(row["total"])

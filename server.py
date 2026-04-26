@@ -20,8 +20,8 @@ from src.db.database import (
     create_credito, get_creditos, pagar_cuota_credito, completar_credito, delete_credito,
     # Ahorros
     registrar_ahorro, get_total_ahorros, get_movimientos_ahorros,
-    # Ingresos
-    registrar_ingreso, get_ingresos_mes, get_total_ingresos_mes, get_total_ingresos_hoy, delete_ingreso
+    # Ingresos (ahora derivados de trabajos; eliminar ingreso independiente)
+    pagar_trabajo, get_ingresos_semana, get_ingresos_mes, get_total_ingresos_mes, get_total_ingresos_hoy, get_disponible, get_total_ingresos_alltime, get_gastos_semana
 )
 
 app = FastAPI(title="VeloApp API")
@@ -65,10 +65,7 @@ class AhorroIn(BaseModel):
     monto: float
     descripcion: str = ""
 
-class IngresoIn(BaseModel):
-    tipo_trabajo: str
-    descripcion: str = ""
-    monto: float
+# IngresoIn model removed: ingresos are now derived from pagos de trabajos
 
 # ================================
 # RUTAS API
@@ -81,7 +78,22 @@ def ping():
 # --- CLIENTES ---
 @app.get("/api/clientes")
 def api_get_clientes():
-    return {"data": get_clientes()}
+    # Enriquecer clientes con un resumen y sus trabajos para una UI más grande
+    clientes = get_clientes()
+    enriched = []
+    for c in clientes:
+        trabajos = get_trabajos_cliente(c["id"])
+        total_monto = sum(t.get("monto", 0) for t in trabajos)
+        total_pagado = sum(t.get("monto_pagado", 0) for t in trabajos)
+        pendientes = sum((t.get("monto", 0) - t.get("monto_pagado", 0)) for t in trabajos if t.get("estado") == "pendiente")
+        enriched.append({
+            **c,
+            "trabajos": trabajos,
+            "total_monto": total_monto,
+            "total_pagado": total_pagado,
+            "pendiente": pendientes,
+        })
+    return {"data": enriched}
 
 @app.post("/api/clientes")
 def api_create_cliente(c: ClienteIn):
@@ -170,24 +182,26 @@ def api_reg_ahorro(a: AhorroIn):
     registrar_ahorro(a.tipo, a.monto, a.descripcion)
     return {"status": "success"}
 
-# --- INGRESOS ---
-@app.get("/api/ingresos")
-def api_get_ingresos():
-    return {"data": get_ingresos_mes()}
+# --- FINANZAS (disponible) y abonos a trabajos ---
+class AbonoIn(BaseModel):
+    monto: float
 
-@app.get("/api/ingresos/total")
-def api_get_tot_ingresos():
-    return {"total": get_total_ingresos_mes()}
 
-@app.post("/api/ingresos")
-def api_reg_ingreso(i: IngresoIn):
-    registrar_ingreso(i.tipo_trabajo, i.descripcion, i.monto)
+@app.post("/api/trabajos/{trabajo_id}/abonar")
+def api_abonar_trabajo(trabajo_id: int, a: AbonoIn):
+    pagar_trabajo(trabajo_id, a.monto)
     return {"status": "success"}
 
-@app.delete("/api/ingresos/{ingreso_id}")
-def api_del_ingreso(ingreso_id: int):
-    delete_ingreso(ingreso_id)
-    return {"status": "success"}
+@app.get("/api/finanzas/disponible")
+def api_get_finanzas_disponible():
+    return {
+        "disponible": get_disponible(),
+        "ingreso_semana": get_ingresos_semana(),
+        "ingreso_mes": get_ingresos_mes(),
+        "gastos_semana": get_gastos_semana(),
+        "gastos_mes": get_total_gastos_mes(),
+        "ingreso_total": get_total_ingresos_alltime(),
+    }
 
 # ================================
 # FRONTEND STATIC FILES
@@ -197,5 +211,5 @@ app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn
-    # Inicia el sevidor automáticamente al ejecutar `python server.py`
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    # Inicia el servidor al ejecutar `python server.py`
+    uvicorn.run(app, host="0.0.0.0", port=8000)

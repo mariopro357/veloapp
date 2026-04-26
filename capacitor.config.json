@@ -1,0 +1,6 @@
+{
+  "appId": "ve.veloapp",
+  "appName": "VeloApp",
+  "webDir": "frontend",
+  "bundledWebRuntime": false
+}

@@ -1,0 +1,48 @@
+import pygame
+import pyttsx3
+import sys
+
+# Inicializar Pygame y pyttsx3
+pygame.init()
+engine = pyttsx3.init()
+
+# Configuración de la pantalla
+width, height = 800, 600
+screen = pygame.display.set_mode((width, height))
+pygame.display.set_caption("Homer Simpson Animation")
+
+# Cargar imagen de Homer Simpson
+homer_image = pygame.image.load("homer.png")
+homer_rect = homer_image.get_rect(center=(width // 2, height // 2))
+
+# Función para hablar texto
+def speak(text):
+    engine.say(text)
+    engine.runAndWait()
+
+# Animación principal
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # Dibujar fondo blanco
+    screen.fill((255, 255, 255))
+
+    # Dibujar a Homer Simpson
+    screen.blit(homer_image, homer_rect)
+
+    # Mostrar texto "Los amo"
+    font = pygame.font.Font(None, 72)
+    text_surface = font.render("Los amo", True, (0, 0, 0))
+    text_rect = text_surface.get_rect(center=(width // 2, height - 50))
+    screen.blit(text_surface, text_rect)
+
+    # Actualizar la pantalla
+    pygame.display.flip()
+
+# Detener pyttsx3 y cerrar Pygame
+engine.stop()
+pygame.quit()
+sys.exit()

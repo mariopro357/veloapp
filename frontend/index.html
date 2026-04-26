@@ -2,21 +2,30 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="VeloApp - Tu asistente financiero personal. Controla gastos, facturas, créditos, ahorros y más.">
-    <!-- CSP Security (Anti-Hacking) - Updated for Tesseract & Gemini -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://fonts.googleapis.com https://www.gstatic.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data:; connect-src 'self' https://generativelanguage.googleapis.com https://ve.dolarapi.com https://tessdata.projectnaptha.com;">
-    <title>VeloApp - Finanzas Personales</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="VeloApp - Tu asistente financiero para negocios y trabajos independientes.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a1628">
 
-    <!-- Google Fonts -->
+    <!-- CSP Security (Anti-Hacking) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://fonts.googleapis.com https://www.gstatic.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data:; connect-src 'self' https://generativelanguage.googleapis.com https://ve.dolarapi.com https://tessdata.projectnaptha.com;">
+
+    <title>VeloApp — Finanzas de Negocio</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Google Fonts: Inter + Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 
-    <!-- Tesseract.js OCR (no TensorFlow, browser-native OCR) -->
+    <!-- Tesseract.js OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <link rel="stylesheet" href="style.css">
@@ -29,10 +38,12 @@
         <div class="splash-logo">
             <div class="splash-v">V</div>
             <div class="splash-name">VeloApp</div>
-            <div class="splash-sub">Tu asistente financiero</div>
+            <div class="splash-sub">Finanzas de tu Negocio</div>
         </div>
         <div class="splash-ring"></div>
         <div class="splash-ring splash-ring-2"></div>
+        <!-- Marca de agua -->
+        <div class="watermark">mt</div>
     </div>
 
     <!-- ══════════ MAIN APP ══════════ -->
@@ -56,12 +67,12 @@
                 </button>
                 <button class="icon-btn" id="notif-btn" title="Recordatorios">
                     <span class="material-icons-outlined">notifications</span>
-                    <span class="notif-badge" id="notif-badge" style="display:none">!</span>
+                    <span class="notif-badge" id="notif-badge" style="display:none"></span>
                 </button>
             </div>
         </header>
 
-        <!-- TOP NAV (3 opciones arriba) -->
+        <!-- TOP NAV -->
         <nav id="top-nav">
             <button class="nav-btn" data-view="scanner" id="nav-scanner">
                 <span class="material-icons-outlined">document_scanner</span>
@@ -91,7 +102,7 @@
         <!-- BLACK STRIPE BOTTOM -->
         <div class="black-stripe"></div>
 
-        <!-- BOTTOM NAV (4 opciones abajo) -->
+        <!-- BOTTOM NAV -->
         <nav id="bottom-nav">
             <button class="nav-btn" data-view="creditos" id="nav-creditos">
                 <span class="material-icons-outlined">credit_card</span>
@@ -108,9 +119,9 @@
                 <span>Horarios</span>
                 <div class="nav-indicator"></div>
             </button>
-            <button class="nav-btn" data-view="ingresos" id="nav-ingresos">
-                <span class="material-icons-outlined">attach_money</span>
-                <span>Ingresos</span>
+            <button class="nav-btn" data-view="disponible" id="nav-disponible">
+                <span class="material-icons-outlined">account_balance_wallet</span>
+                <span>Disponible</span>
                 <div class="nav-indicator"></div>
             </button>
         </nav>
@@ -129,8 +140,32 @@
 <!-- TOAST NOTIFICATION -->
 <div id="toast" class="toast hidden"></div>
 
+<!-- OFFLINE BANNER -->
+<div id="offline-banner" class="offline-banner hidden">
+    <span class="material-icons-outlined" style="font-size:16px">wifi_off</span>
+    Sin conexión — Modo Offline
+</div>
+
 <script src="security.js"></script>
 <script src="ai_service.js"></script>
 <script src="app.js"></script>
+
+<!-- Service Worker Registration -->
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+}
+// Detector offline/online
+window.addEventListener('offline', () => {
+    const b = document.getElementById('offline-banner');
+    if (b) b.classList.remove('hidden');
+});
+window.addEventListener('online', () => {
+    const b = document.getElementById('offline-banner');
+    if (b) b.classList.add('hidden');
+});
+</script>
 </body>
 </html>

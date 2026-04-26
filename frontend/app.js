@@ -28,6 +28,36 @@ const Utils = {
     fmtCurrency(n) { return '$' + this.fmt(n); },
     today() { return new Date().toISOString().split('T')[0]; },
     monthKey() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; },
+    weekKey() {
+        // Genera una clave única por semana (Lunes como inicio)
+        const d = new Date();
+        const day = d.getDay();
+        const diff = (day === 0) ? -6 : 1 - day;
+        const mon = new Date(d);
+        mon.setDate(d.getDate() + diff);
+        mon.setHours(0,0,0,0);
+        return `${mon.getFullYear()}-W${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`;
+    },
+    weekStart() {
+        const d = new Date();
+        const day = d.getDay();
+        const diff = (day === 0) ? -6 : 1 - day;
+        const mon = new Date(d);
+        mon.setDate(d.getDate() + diff);
+        mon.setHours(0,0,0,0);
+        return mon;
+    },
+    getWeekLabel(isoDate) {
+        if (!isoDate) return '';
+        const d = new Date(isoDate + 'T00:00:00');
+        const day = d.getDay() === 0 ? 6 : d.getDay() - 1; // Mon=0
+        const mon = new Date(d);
+        mon.setDate(d.getDate() - day);
+        const sun = new Date(mon);
+        sun.setDate(mon.getDate() + 6);
+        const months = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        return `Semana ${mon.getDate()} ${months[mon.getMonth()]} — ${sun.getDate()} ${months[sun.getMonth()]}`;
+    },
     dateLabel(iso) {
         if (!iso) return '';
         const [y,m,d] = iso.split('-');
@@ -122,46 +152,50 @@ const Notif = {
 // ─────────────────────────────────────────────
 const ViewHome = {
     render() {
-        const gastos  = Store.get('gastos_' + Utils.monthKey(), []);
-        const ingresos = Store.get('ingresos_' + Utils.monthKey(), []);
-        const ahorros = Store.get('ahorros', { total: 0, meta: 0 });
+        const month    = Utils.monthKey();
+        const gastos   = Store.get('gastos_' + month, []);
+        const ingresos = Store.get('ingresos_' + month, []);
         const creditos = Store.get('creditos', []).filter(c => !c.pagado);
         const clientes = Store.get('clientes', []);
+        const weekStart = Utils.weekStart();
 
-        const totalGasto   = gastos.reduce((a, g) => a + parseFloat(g.monto || 0), 0);
-        const totalIngreso  = ingresos.reduce((a, i) => a + parseFloat(i.monto || 0), 0);
-        const balance      = totalIngreso - totalGasto;
-        const now          = new Date();
-        const hour         = now.getHours();
-        let greeting = hour < 12 ? '¡Buenos días!' : hour < 18 ? '¡Buenas tardes!' : '¡Buenas noches!';
+        const totalGastoMes   = gastos.reduce((a, g) => a + parseFloat(g.monto || 0), 0);
+        const totalIngresoMes = ingresos.reduce((a, i) => a + parseFloat(i.monto || 0), 0);
+        const totalIngresoSemana = ingresos
+            .filter(i => i.fecha && new Date(i.fecha + 'T00:00:00') >= weekStart)
+            .reduce((a, i) => a + parseFloat(i.monto || 0), 0);
+        const disponible = totalIngresoMes - totalGastoMes;
+        const now  = new Date();
+        const hour = now.getHours();
+        const greeting = hour < 12 ? '¡Buenos días!' : hour < 18 ? '¡Buenas tardes!' : '¡Buenas noches!';
         const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
         return `
         <div class="anim-1">
             <div class="home-greeting">${greeting} 👋</div>
-            <div class="home-sub">${meses[now.getMonth()]} ${now.getFullYear()} · Tu resumen personal</div>
+            <div class="home-sub">${meses[now.getMonth()]} ${now.getFullYear()} · Tu resumen de trabajo</div>
         </div>
 
         <div class="stats-grid anim-2">
-            <div class="stat-card card-success-top" onclick="App.navigate('ingresos')">
-                <span class="label">Ingresos Mes</span>
-                <span class="value success">${Utils.fmtCurrency(totalIngreso)}</span>
-                <span class="material-icons-outlined bg-icon">trending_up</span>
+            <div class="stat-card card-success-top" onclick="App.navigate('clientes')">
+                <span class="label">Ing. Semana</span>
+                <span class="value success">${Utils.fmtCurrency(totalIngresoSemana)}</span>
+                <span class="material-icons-outlined bg-icon">today</span>
             </div>
             <div class="stat-card card-danger-top" onclick="App.navigate('gastos')">
                 <span class="label">Gastos Mes</span>
-                <span class="value danger">${Utils.fmtCurrency(totalGasto)}</span>
+                <span class="value danger">${Utils.fmtCurrency(totalGastoMes)}</span>
                 <span class="material-icons-outlined bg-icon">trending_down</span>
             </div>
-            <div class="stat-card ${balance >= 0 ? 'card-success-top' : 'card-danger-top'}" onclick="App.navigate('gastos')">
-                <span class="label">Balance</span>
-                <span class="value ${balance >= 0 ? 'success' : 'danger'}">${Utils.fmtCurrency(balance)}</span>
-                <span class="material-icons-outlined bg-icon">account_balance_wallet</span>
+            <div class="stat-card card-accent-top" onclick="App.navigate('clientes')">
+                <span class="label">Ing. del Mes</span>
+                <span class="value accent">${Utils.fmtCurrency(totalIngresoMes)}</span>
+                <span class="material-icons-outlined bg-icon">trending_up</span>
             </div>
-            <div class="stat-card card-gold-top" onclick="App.navigate('ahorros')">
-                <span class="label">Ahorros</span>
-                <span class="value gold">${Utils.fmtCurrency(ahorros.total)}</span>
-                <span class="material-icons-outlined bg-icon">savings</span>
+            <div class="stat-card ${disponible >= 0 ? 'card-gold-top' : 'card-danger-top'}" onclick="App.navigate('disponible')">
+                <span class="label">Disponible</span>
+                <span class="value ${disponible >= 0 ? 'gold' : 'danger'}">${Utils.fmtCurrency(disponible)}</span>
+                <span class="material-icons-outlined bg-icon">account_balance_wallet</span>
             </div>
         </div>
 
@@ -183,8 +217,8 @@ const ViewHome = {
             <div class="list-item" onclick="App.navigate('clientes')">
                 <div class="list-item-icon"><span class="material-icons-outlined">people</span></div>
                 <div class="list-item-content">
-                    <div class="list-item-title">Clientes Registrados</div>
-                    <div class="list-item-sub">Cartelera de trabajo</div>
+                    <div class="list-item-title">Clientes</div>
+                    <div class="list-item-sub">${clientes.length} registrado(s)</div>
                 </div>
                 <div class="list-item-right">
                     <span class="chip chip-accent">${clientes.length}</span>
@@ -193,10 +227,7 @@ const ViewHome = {
         </div>
 
         <div class="card anim-4">
-            <div class="section-title" style="font-size:14px;margin-bottom:10px">
-                <span class="material-icons-outlined" style="font-size:18px">grid_view</span>
-                Acceso Rápido
-            </div>
+            <div style="font-weight:600;font-size:13px;margin-bottom:10px;color:var(--text-secondary)">Acceso Rápido</div>
             <div class="shortcuts-grid">
                 <button class="shortcut-btn" onclick="App.navigate('scanner')">
                     <span class="material-icons-outlined">document_scanner</span>
@@ -206,13 +237,21 @@ const ViewHome = {
                     <span class="material-icons-outlined">receipt_long</span>
                     <span>Gastos</span>
                 </button>
-                <button class="shortcut-btn" onclick="App.navigate('horarios')">
-                    <span class="material-icons-outlined">schedule</span>
-                    <span>Horario</span>
+                <button class="shortcut-btn" onclick="App.navigate('clientes')">
+                    <span class="material-icons-outlined">people</span>
+                    <span>Clientes</span>
                 </button>
-                <button class="shortcut-btn" onclick="App.navigate('ingresos')">
-                    <span class="material-icons-outlined">attach_money</span>
-                    <span>Ingreso</span>
+                <button class="shortcut-btn" onclick="App.navigate('disponible')">
+                    <span class="material-icons-outlined">account_balance_wallet</span>
+                    <span>Balance</span>
+                </button>
+                <button class="shortcut-btn" onclick="App.exportBackup()">
+                    <span class="material-icons-outlined">download</span>
+                    <span>Backup</span>
+                </button>
+                <button class="shortcut-btn" onclick="App.importBackup()">
+                    <span class="material-icons-outlined">upload</span>
+                    <span>Restaurar</span>
                 </button>
             </div>
         </div>`;
@@ -387,16 +426,7 @@ const ViewScanner = {
         this.runDirectVision(file);
     },
 
-    async runDiagnostic() {
-        const resEl = document.getElementById('diag-res');
-        resEl.innerHTML = '<span class="loading-ring" style="width:12px;height:12px"></span> Probando llave...';
-        try {
-            const res = await GeminiAPI.testConnection();
-            resEl.innerText = res;
-        } catch (e) {
-            resEl.innerText = "Error crítico: " + e.message;
-        }
-    },
+    // (runDiagnostic definida más abajo — versión completa)
 
     setConfig(key, val) {
         this.config[key] = val;
@@ -1146,7 +1176,7 @@ const ViewScanner = {
                     <span class="inv-val">${Utils.esc(r.notas?.cajero || '—')}</span>
                 </div>
                 <div class="inv-note-row">
-                    <span class="inv-label">Forma de Forma:</span>
+                    <span class="inv-label">Forma de Pago:</span>
                     <span class="inv-val">${Utils.esc(r.notas?.formaForma || 'FORMA LIBRE')}</span>
                 </div>
             </div>
@@ -1159,7 +1189,7 @@ const ViewScanner = {
         <!-- ③ CORRECCIÓN MANUAL -->
         <div class="card anim-3" style="margin-bottom:14px">
             <div style="font-weight:700;font-size:14px;margin-bottom:12px">
-                ✏️ Agregar / Corregir Productoss
+                ✏️ Agregar / Corregir Productos
             </div>
             <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px">
                 <input type="text"   id="man-nombre" placeholder="Nombre del producto" style="flex:2">
@@ -1203,6 +1233,10 @@ const ViewScanner = {
                 <span class="material-icons-outlined">save</span>
                 Guardar como Factura Digital (Transcripción)
             </button>
+            <label style="display:flex;align-items:center;gap:10px;margin-top:12px;cursor:pointer;font-size:13px;color:var(--text-secondary)">
+                <input type="checkbox" id="factura-add-gasto" checked style="width:18px;height:18px;accent-color:var(--accent-glow);cursor:pointer">
+                Registrar automáticamente en <strong style="color:var(--danger)">Gastos</strong>
+            </label>
         </div>`;
     },
 
@@ -1269,7 +1303,8 @@ const ViewScanner = {
         const r = this.currentResult;
         const categoria = Utils.el('factura-categoria')?.value || 'mercado';
         const monedaKey = Utils.el('factura-moneda')?.value || 'Bs';
-        
+        const addToGastos = Utils.el('factura-add-gasto')?.checked !== false;
+
         // Retention Policy Logic
         const now = Date.now();
         const oneDay = 24 * 60 * 60 * 1000;
@@ -1278,12 +1313,13 @@ const ViewScanner = {
 
         const symMap    = { USD:'$', Bs:'Bs.', COP:'$', EUR:'€' };
         const sym       = symMap[monedaKey] || 'Bs.';
-        
+
         const month     = Utils.monthKey();
         const facturas  = Store.get('facturas_' + month, []);
+        const titulo    = r.emisor?.razonSocial || Utils.el('factura-titulo')?.value || 'Factura Digital';
 
         facturas.push({
-            titulo:        r.emisor?.razonSocial || 'Factura Digital',
+            titulo,
             categoria,
             expiresAt,
             createdAt:     now,
@@ -1293,7 +1329,6 @@ const ViewScanner = {
             total:         r.total,
             moneda:        monedaKey,
             monedaSimbolo: sym,
-            // Full Detailed Snapshot
             snapshot: {
                 emisor: r.emisor,
                 cliente: r.cliente,
@@ -1302,11 +1337,25 @@ const ViewScanner = {
                 notas: r.notas
             }
         });
-
         Store.set('facturas_' + month, facturas);
+
+        // ── Auto-registrar como Gasto ─────────────────
+        if (addToGastos && r.total > 0) {
+            const gastos = Store.get('gastos_' + month, []);
+            gastos.push({
+                desc: titulo,
+                monto: r.total,
+                categoria: categoria === 'universidad' ? 'Educación' : 'Otros',
+                fecha: Utils.today(),
+                moneda: monedaKey,
+                origenFactura: true
+            });
+            Store.set('gastos_' + month, gastos);
+        }
+
         this.currentResult = null;
         this._manualList   = [];
-        toast(`✅ Guardada como ${categoria}. Expiración: ${retentionDays} días.`, 'save');
+        toast(`✅ Guardada${addToGastos ? ' y registrada en Gastos' : ''}. Expira en ${retentionDays}d`, 'save');
         App.navigate('scanner');
     },
 
@@ -1318,7 +1367,7 @@ const ViewScanner = {
         if (!f) return;
         const sym = f.monedaSimbolo || 'Bs.';
 
-        // If high-fidelity snapshot exists, use the same template as scanner
+        // Si tiene un snapshot detallado de alta fidelidad:
         if (f.snapshot) {
             const r = f.snapshot;
             Modal.show(`
@@ -1342,7 +1391,9 @@ const ViewScanner = {
                     <div class="inv-section" style="background:rgba(45,125,210,0.03)">
                         <div class="inv-section-title">🆔 Datos del Cliente / Estudiante</div>
                         <div class="inv-info-box">
-                            <div style="font-size:14px; font-weight:800; color:#fff">Nombre: ${Utils.esc(r.cliente?.nombre || '—')}</div>
+                            <div style="font-size:14px; font-weight:800; color:#fff; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:5px; margin-bottom:5px">
+                                Nombre: ${Utils.esc(r.cliente?.nombre || '—')}
+                            </div>
                             <div class="inv-grid">
                                 <div><span class="inv-label">Cédula:</span> <span class="inv-val">${Utils.esc(r.cliente?.cedula || '—')}</span></div>
                                 <div><span class="inv-label">Carrera:</span> <span class="inv-val">${Utils.esc(r.cliente?.carrera || '—')}</span></div>
@@ -1355,7 +1406,9 @@ const ViewScanner = {
                         <div class="inv-section-title">🗓️ Detalles de la Transacción</div>
                         <div class="inv-grid">
                             <div><span class="inv-label">Nro. Factura:</span> <span class="inv-val">${Utils.esc(r.transaccion?.nroFactura || '—')}</span></div>
+                            <div><span class="inv-label">Nro. Control:</span> <span class="inv-val">${Utils.esc(r.transaccion?.nroControl || '—')}</span></div>
                             <div><span class="inv-label">Fecha:</span> <span class="inv-val">${Utils.esc(r.transaccion?.fecha || f.fecha)}</span></div>
+                            <div><span class="inv-label">Hora:</span> <span class="inv-val">${Utils.esc(r.transaccion?.hora || f.time)}</span></div>
                         </div>
                     </div>
 
@@ -1363,13 +1416,20 @@ const ViewScanner = {
                     <div class="inv-section">
                         <div class="inv-section-title">🛍️ Detalle de Pago</div>
                         <table class="inv-table">
-                            <thead><tr><th>Concepto</th><th style="text-align:right">Monto</th></tr></thead>
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Concepto</th>
+                                    <th style="text-align:right">Monto</th>
+                                </tr>
+                            </thead>
                             <tbody>
                                 ${r.items.map(it => `
                                 <tr>
+                                    <td><span class="inv-val">${Utils.esc(it.fecha || r.transaccion?.fecha || '')}</span></td>
                                     <td>
                                         <div style="font-weight:700">${Utils.esc(it.concepto || it.name || 'Sin concepto')}</div>
-                                        <div style="font-size:9px; color:#64748b">${it.fecha || ''}</div>
+                                        <div style="font-size:9px; color:#64748b">${it.documento ? 'Doc: '+it.documento : ''}</div>
                                     </td>
                                     <td class="inv-amount-cell">${sym}${Utils.fmt(it.monto || it.price)}</td>
                                 </tr>`).join('')}
@@ -1379,26 +1439,51 @@ const ViewScanner = {
 
                     <!-- RESUMEN -->
                     <div class="inv-resumen-box">
-                        <span class="inv-label" style="font-size:12px">Total Pago</span>
-                        <div class="inv-total-val">${sym}${Utils.fmt(f.total)}</div>
+                        <div class="inv-section-title" style="color:#94a3b8; font-size:11px; margin-bottom:5px; justify-content:flex-end">💰 Resumen Financiero</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center">
+                            <span class="inv-label" style="font-size:12px">Total Pago</span>
+                            <div class="inv-total-val">${sym}${Utils.fmt(f.total)}</div>
+                        </div>
                     </div>
 
-                    <div style="background:#000; padding:10px; text-align:center; font-size:10px; color:#4a5f80">
-                        ${f.categoria === 'universidad' ? '🎓 UNIVERSIDAD - Expira en 120 días' : '🛒 MERCADO - Expira en 30 días'}
+                    <!-- NOTAS -->
+                    <div class="inv-footer-notes">
+                        <div class="inv-note-row">
+                            <span class="inv-label">Próximo Pago:</span>
+                            <span class="inv-val" style="color:#fbbf24; font-weight:800">${Utils.esc(r.notas?.proximoPago || '—')}</span>
+                        </div>
+                        <div class="inv-note-row">
+                            <span class="inv-label">Cajero:</span>
+                            <span class="inv-val">${Utils.esc(r.notas?.cajero || '—')}</span>
+                        </div>
+                        <div class="inv-note-row">
+                            <span class="inv-label">Forma de Pago:</span>
+                            <span class="inv-val">${Utils.esc(r.notas?.formaForma || 'FORMA LIBRE')}</span>
+                        </div>
                     </div>
                 </div>
-                <button class="btn btn-primary" style="margin-top:15px; width:100%" onclick="Modal.close()">Cerrar</button>
+                <div style="margin-top:14px">
+                    <button class="btn btn-primary" onclick="Modal.close()">Cerrar</button>
+                </div>
             `);
-            return;
+        } else {
+            // Diseño Legacy para facturas antiguas
+            Modal.show(`
+                <div class="modal-title">📄 Detalles de Factura</div>
+                <div style="font-weight:700;font-size:16px;margin-bottom:10px;text-align:center">${Utils.esc(f.titulo)}</div>
+                <div style="text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:15px">${f.fecha} · ${f.time}</div>
+                <div style="font-family:var(--font-title);font-size:36px;font-weight:700;color:var(--danger);text-align:center;margin-bottom:20px">${sym}${Utils.fmt(f.total)}</div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;padding:10px 0;border-top:1px solid rgba(255,255,255,0.05)">
+                    <span>Ítems</span>
+                    <span>${f.itemCount || 0}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;padding:10px 0;border-top:1px solid rgba(255,255,255,0.05)">
+                    <span>Categoría</span>
+                    <span style="text-transform:capitalize">${f.categoria}</span>
+                </div>
+                <button class="btn btn-primary" style="margin-top:20px" onclick="Modal.close()">Cerrar</button>
+            `);
         }
-
-        // Fallback for legacy items
-        Modal.show(`
-            <div class="modal-title">🧾 ${Utils.esc(f.titulo)}</div>
-            <div style="color:var(--text-secondary);font-size:15px; margin-bottom:15px">
-                Total: <strong style="color:var(--gold)">${sym}${Utils.fmt(f.total)}</strong>
-            </div>
-            <button class="btn btn-primary" onclick="Modal.close()">Cerrar</button>`);
     },
 
     delFactura(idx) {
@@ -1417,117 +1502,268 @@ const ViewScanner = {
 // MÓDULO 2: GASTOS
 // ─────────────────────────────────────────────
 const ViewGastos = {
+    currentMonth: null,
+
+    getDisplayMonth() {
+        return this.currentMonth || Utils.monthKey();
+    },
+
+    // ── Agrupa gastos por etiqueta de semana
+    _groupByWeek(gastos) {
+        const grouped = {};
+        gastos.forEach((g, i) => {
+            const wk = Utils.getWeekLabel(g.fecha) || 'Sin fecha';
+            if (!grouped[wk]) grouped[wk] = [];
+            grouped[wk].push({ ...g, _idx: i });
+        });
+        return grouped;
+    },
+
+    // ── Abre/cierra panel de semana anterior
+    toggleWeek(id) {
+        const panel   = document.getElementById('wp-' + id);
+        const chevron = document.getElementById('wc-' + id);
+        if (!panel) return;
+        const isOpen = panel.classList.toggle('open');
+        if (chevron) chevron.classList.toggle('open', isOpen);
+    },
+
+    // ── HTML de un ítem individual (lleva _idx = posición real en el array)
+    _itemHTML(g) {
+        const sym = g.moneda === 'Bs' ? 'Bs.' : '$';
+        return `<div class="list-item" style="padding:10px 14px">
+            <div class="list-item-icon" style="background:rgba(239,68,68,0.1);color:var(--danger)">${this.catIcon(g.categoria)}</div>
+            <div class="list-item-content">
+                <div class="list-item-title">${Utils.esc(g.desc)}</div>
+                <div class="list-item-sub">${g.categoria} · ${Utils.dateLabel(g.fecha)}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+                <div style="font-weight:700;color:var(--danger);font-size:14px">${sym}${Utils.fmt(g.monto)}</div>
+                <button onclick="ViewGastos.showEdit(${g._idx})" style="width:28px;height:28px;border-radius:8px;background:rgba(45,125,210,0.1);color:var(--accent-glow);border:1px solid rgba(45,125,210,0.2);cursor:pointer;display:flex;align-items:center;justify-content:center">
+                    <span class="material-icons-outlined" style="font-size:14px">edit</span>
+                </button>
+                <button onclick="ViewGastos.del(${g._idx})" style="width:28px;height:28px;border-radius:8px;background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);cursor:pointer;display:flex;align-items:center;justify-content:center">
+                    <span class="material-icons-outlined" style="font-size:14px">delete</span>
+                </button>
+            </div>
+        </div>`;
+    },
+
+    // ── Vista principal con semanas
+    _renderWeeklyView(gastos, mesLabel, total, cats) {
+        const summaryCard = `
+        <div class="card card-danger-top anim-2" style="text-align:center;padding:18px">
+            <div class="label">Total gastado &mdash; ${mesLabel}</div>
+            <div class="week-total-big">${Utils.fmtCurrency(total)}</div>
+            <div style="font-size:12px;color:var(--text-muted)">${gastos.length} registro(s)</div>
+        </div>`;
+
+        if (gastos.length === 0) {
+            return summaryCard + `
+            <div class="card anim-3">
+                <div class="empty-state" style="padding:20px">
+                    <span class="material-icons-outlined" style="font-size:36px">receipt</span>
+                    <span class="empty-sub">Sin gastos en ${mesLabel}</span>
+                </div>
+            </div>`;
+        }
+
+        // Categorías
+        const catsCard = Object.keys(cats).length > 0 ? `
+        <div class="card anim-3">
+            <div style="font-weight:600;margin-bottom:10px;font-size:14px">Por Categoría</div>
+            ${Object.entries(cats).sort((a,b) => b[1]-a[1]).map(([cat,v]) => `
+            <div style="margin-bottom:10px">
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+                    <span>${this.catIcon(cat)} ${cat}</span>
+                    <span style="color:var(--danger);font-weight:700">${Utils.fmtCurrency(v)}</span>
+                </div>
+                <div class="progress-bar-wrap" style="height:6px">
+                    <div class="progress-bar" style="width:${Math.min(100,(v/total)*100)}%;background:var(--danger);border-radius:3px"></div>
+                </div>
+            </div>`).join('')}
+        </div>` : '';
+
+        // Agrupar por semana
+        const grouped = this._groupByWeek(gastos);
+        const currentWkLabel = Utils.getWeekLabel(Utils.today());
+        const currentItems = grouped[currentWkLabel] || [];
+        const currentTotal = currentItems.reduce((a,g) => a + parseFloat(g.monto||0), 0);
+
+        // Semanas pasadas: más reciente primero
+        const pastWeeks = Object.entries(grouped)
+            .filter(([wk]) => wk !== currentWkLabel)
+            .sort(([,a],[,b]) => {
+                const dA = a[0]?.fecha || '';
+                const dB = b[0]?.fecha || '';
+                return dB.localeCompare(dA);
+            });
+
+        // Card semana actual
+        const currentCard = `
+        <div class="card anim-4">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <div style="font-weight:700;font-size:15px">✨ Esta Semana</div>
+                <span class="week-badge">${Utils.fmtCurrency(currentTotal)}</span>
+            </div>
+            ${currentItems.length === 0
+                ? `<div class="empty-state" style="padding:14px"><span class="empty-sub">Sin gastos esta semana — ¡vas bien! 🎉</span></div>`
+                : currentItems.slice().reverse().map(g => this._itemHTML(g)).join('')
+            }
+        </div>`;
+
+        // Semanas pasadas colapsables
+        const pastSection = pastWeeks.length === 0 ? '' : `
+        <div class="week-history-sep">
+            <div class="week-history-sep-line"></div>
+            <span class="week-history-sep-label">📦 Semanas Anteriores</span>
+            <div class="week-history-sep-line"></div>
+        </div>
+        ${pastWeeks.map(([wk, items], idx) => {
+            const wkTotal = items.reduce((a,g) => a + parseFloat(g.monto||0), 0);
+            const pid = 'wk' + idx;
+            return `
+            <div class="week-archive-header" onclick="ViewGastos.toggleWeek('${pid}')">
+                <div class="week-archive-label">
+                    <span class="material-icons-outlined">event_note</span>
+                    ${wk}
+                </div>
+                <div class="week-archive-right">
+                    <span class="week-archive-total">${Utils.fmtCurrency(wkTotal)}</span>
+                    <span style="font-size:10px;padding:2px 7px;background:rgba(255,255,255,0.04);color:var(--text-muted);border:1px solid var(--glass-border);border-radius:10px">${items.length}</span>
+                    <span class="material-icons-outlined week-archive-chevron" id="wc-${pid}">expand_more</span>
+                </div>
+            </div>
+            <div class="week-archive-panel" id="wp-${pid}">
+                <div class="week-archive-inner">
+                    ${items.slice().reverse().map(g => this._itemHTML(g)).join('')}
+                </div>
+            </div>`;
+        }).join('')}`;
+
+        return summaryCard + catsCard + currentCard + pastSection;
+    },
+
     render() {
-        const month = Utils.monthKey();
+        const month = this.getDisplayMonth();
         const gastos = Store.get('gastos_' + month, []);
         const total  = gastos.reduce((a,g) => a + parseFloat(g.monto || 0), 0);
         const cats   = {};
         gastos.forEach(g => { cats[g.categoria] = (cats[g.categoria] || 0) + parseFloat(g.monto || 0); });
         const meses  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Sep','Oct','Nov','Dic'];
-        const now    = new Date();
+        const [yr, mo] = month.split('-').map(Number);
+        const mesLabel = meses[mo - 1] + ' ' + yr;
+        const isCurrentMonth = month === Utils.monthKey();
+        const prevMonth = (() => { const d = new Date(yr, mo-2, 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+        const nextMonth = (() => { const d = new Date(yr, mo, 1);   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+        const canGoNext = nextMonth <= Utils.monthKey();
 
         return `
         <div class="section-title anim-1">
             <span class="material-icons-outlined">receipt_long</span>
-            Gastos del Mes
+            Gastos
         </div>
-
-        <div class="card card-danger-top anim-2" style="text-align:center;padding:20px">
-            <div class="label">Total gastado — ${meses[now.getMonth()]} ${now.getFullYear()}</div>
-            <div style="font-family:var(--font-title);font-size:44px;font-weight:700;color:var(--danger);margin:4px 0">${Utils.fmtCurrency(total)}</div>
-            <div style="font-size:12px;color:var(--text-muted)">${gastos.length} registro(s) este mes</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px" class="anim-2">
+            <button onclick="ViewGastos.setMonth('${prevMonth}')" style="width:36px;height:36px;border-radius:10px;background:var(--accent-soft);border:1px solid var(--glass-border);color:var(--accent-glow);cursor:pointer;display:flex;align-items:center;justify-content:center">
+                <span class="material-icons-outlined">chevron_left</span>
+            </button>
+            <div style="flex:1;text-align:center;font-weight:700;font-size:15px">${mesLabel}</div>
+            <button onclick="ViewGastos.setMonth('${nextMonth}')" ${!canGoNext ? 'disabled style="opacity:0.3;cursor:default;' : 'style="'}width:36px;height:36px;border-radius:10px;background:var(--accent-soft);border:1px solid var(--glass-border);color:var(--accent-glow);cursor:pointer;display:flex;align-items:center;justify-content:center">
+                <span class="material-icons-outlined">chevron_right</span>
+            </button>
         </div>
-
-        ${Object.keys(cats).length > 0 ? `
-        <div class="card anim-3">
-            <div style="font-weight:600;margin-bottom:10px;font-size:14px">Por Categoría</div>
-            ${Object.entries(cats).map(([cat,v]) => `
-            <div style="margin-bottom:8px">
-                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px">
-                    <span>${this.catIcon(cat)} ${cat}</span>
-                    <span style="color:var(--danger);font-weight:600">${Utils.fmtCurrency(v)}</span>
-                </div>
-                <div class="progress-bar-wrap" style="height:4px">
-                    <div class="progress-bar" style="width:${Math.min(100,(v/total)*100)}%;background:var(--danger)"></div>
-                </div>
-            </div>`).join('')}
-        </div>` : ''}
-
-        <div class="card anim-4">
-            <div style="font-weight:700;font-size:15px;margin-bottom:12px">Registros</div>
-            ${gastos.length === 0 ? `
-            <div class="empty-state" style="padding:20px">
-                <span class="material-icons-outlined" style="font-size:36px">receipt</span>
-                <span class="empty-sub">Sin gastos registrados este mes</span>
-            </div>` : gastos.slice().reverse().map((g, ri) => {
-                const i = gastos.length - 1 - ri;
-                return `
-            <div class="list-item">
-                <div class="list-item-icon" style="background:rgba(239,68,68,0.1);color:var(--danger)">${this.catIcon(g.categoria)}</div>
-                <div class="list-item-content">
-                    <div class="list-item-title">${Utils.esc(g.desc)}</div>
-                    <div class="list-item-sub">${g.categoria} · ${Utils.dateLabel(g.fecha)}</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                    <span style="font-weight:700;color:var(--danger)">${Utils.fmtCurrency(g.monto)}</span>
-                    <button onclick="ViewGastos.del(${i})" style="width:28px;height:28px;border-radius:8px;background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);cursor:pointer;display:flex;align-items:center;justify-content:center">
-                        <span class="material-icons-outlined" style="font-size:14px">delete</span>
-                    </button>
-                </div>
-            </div>`;}).join('')}
-        </div>
-
-        <button class="btn btn-primary anim-5" onclick="ViewGastos.showAdd()">
+        ${this._renderWeeklyView(gastos, mesLabel, total, cats)}
+        ${isCurrentMonth ? `<button class="btn btn-primary anim-5" onclick="ViewGastos.showAdd()" style="margin-top:6px">
             <span class="material-icons-outlined">add</span> Agregar Gasto
-        </button>`;
+        </button>` : ''}`;
+    },
+
+    setMonth(m) {
+        this.currentMonth = m;
+        App.renderCurrentView();
     },
 
     catIcon(c) {
-        const icons = { Mercado:'🛒', Repuestos:'🔧', Bodega:'🏪', Comida:'🍽️', Transporte:'🚗', Salud:'💊', Entretenimiento:'🎬', Otro:'📦' };
+        const icons = {
+            'Repuestos':'🔧', 'Comida':'🍽️', 'Transporte':'🚗',
+            'Servicios':'💡', 'Herramientas':'🛠️', 'Personal':'👤',
+            'Salud':'💊', 'Educación':'📚', 'Entretenimiento':'🎮', 'Otros':'📦'
+        };
         return icons[c] || '📦';
     },
 
-    showAdd() {
-        Modal.show(`
-            <div class="modal-title">➕ Nuevo Gasto</div>
+    _modalHTML(g) {
+        const cats = ['Repuestos','Comida','Transporte','Servicios','Herramientas','Personal','Salud','Educación','Entretenimiento','Otros'];
+        return `
             <div class="form-group">
                 <label class="form-label">Descripción</label>
-                <input type="text" id="g-desc" placeholder="¿Qué compraste?">
+                <input type="text" id="g-desc" placeholder="¿En qué gastaste?" value="${g ? Utils.esc(g.desc) : ''}">
             </div>
             <div class="form-group">
-                <label class="form-label">Monto ($)</label>
-                <input type="number" id="g-monto" placeholder="0.00" step="0.01" min="0">
+                <label class="form-label">Moneda</label>
+                <div style="display:flex;gap:8px">
+                    <button id="g-cur-usd" onclick="document.getElementById('g-cur-usd').classList.add('active');document.getElementById('g-cur-bs').classList.remove('active');document.getElementById('g-moneda-val').value='USD'" class="btn-toggle ${!g || g.moneda !== 'Bs' ? 'active' : ''}" style="flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:13px">💵 USD</button>
+                    <button id="g-cur-bs" onclick="document.getElementById('g-cur-bs').classList.add('active');document.getElementById('g-cur-usd').classList.remove('active');document.getElementById('g-moneda-val').value='Bs'" class="btn-toggle ${g && g.moneda === 'Bs' ? 'active' : ''}" style="flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;font-size:13px">🇻🇪 Bs.</button>
+                </div>
+                <input type="hidden" id="g-moneda-val" value="${g ? (g.moneda || 'USD') : 'USD'}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Monto</label>
+                <input type="number" id="g-monto" placeholder="0.00" step="0.01" min="0" value="${g ? Utils.fmt(g.monto) : ''}">
             </div>
             <div class="form-group">
                 <label class="form-label">Categoría</label>
                 <select id="g-cat">
-                    <option>Mercado</option><option>Repuestos</option><option>Bodega</option>
-                    <option>Comida</option><option>Transporte</option><option>Salud</option>
-                    <option>Entretenimiento</option><option>Otro</option>
+                    ${cats.map(c => `<option value="${c}" ${g && g.categoria === c ? 'selected' : ''}>${this.catIcon(c)} ${c}</option>`).join('')}
                 </select>
             </div>
-            <button class="btn btn-primary" onclick="ViewGastos.save()">
+            <div class="form-group">
+                <label class="form-label">Fecha</label>
+                <input type="date" id="g-fecha" value="${g ? g.fecha : Utils.today()}">
+            </div>`;
+    },
+
+    showAdd() {
+        Modal.show(`<div class="modal-title">➕ Nuevo Gasto</div>${this._modalHTML(null)}
+            <button class="btn btn-primary" onclick="ViewGastos.save(-1)">
                 <span class="material-icons-outlined">save</span> Guardar Gasto
             </button>`);
     },
 
-    save() {
-        const desc  = (Utils.el('g-desc') || {}).value?.trim();
-        const monto = parseFloat((Utils.el('g-monto') || {}).value || 0);
-        const cat   = (Utils.el('g-cat') || {}).value;
+    showEdit(idx) {
+        const month = this.getDisplayMonth();
+        const g = Store.get('gastos_' + month, [])[idx];
+        if (!g) return;
+        Modal.show(`<div class="modal-title">✏️ Editar Gasto</div>${this._modalHTML(g)}
+            <button class="btn btn-primary" onclick="ViewGastos.save(${idx})">
+                <span class="material-icons-outlined">save</span> Guardar Cambios
+            </button>`);
+    },
+
+    save(idx) {
+        const desc   = (Utils.el('g-desc') || {}).value?.trim();
+        const monto  = parseFloat((Utils.el('g-monto') || {}).value || 0);
+        const cat    = (Utils.el('g-cat') || {}).value;
+        const moneda = (Utils.el('g-moneda-val') || {}).value || 'USD';
+        const fecha  = (Utils.el('g-fecha') || {}).value || Utils.today();
         if (!desc || monto <= 0) { toast('Completa descripción y monto', 'warning'); return; }
-        const month = Utils.monthKey();
+        const month = this.getDisplayMonth();
         const gastos = Store.get('gastos_' + month, []);
-        gastos.push({ desc, monto, categoria: cat, fecha: Utils.today() });
+        const entry = { desc, monto, categoria: cat, fecha, moneda };
+        if (idx >= 0) {
+            gastos[idx] = entry;
+        } else {
+            gastos.push(entry);
+        }
         Store.set('gastos_' + month, gastos);
         Modal.close();
-        toast('Gasto registrado', 'check');
+        toast(idx >= 0 ? 'Gasto actualizado ✓' : 'Gasto registrado ✓', 'check');
         App.navigate('gastos');
     },
 
     del(idx) {
         Modal.confirm('¿Eliminar este gasto?', () => {
-            const month = Utils.monthKey();
+            const month = this.getDisplayMonth();
             const gastos = Store.get('gastos_' + month, []);
             gastos.splice(idx, 1);
             Store.set('gastos_' + month, gastos);
@@ -1598,11 +1834,20 @@ const ViewClientes = {
         const c = clientes[this.selectedClient];
         if (!c) { this.selectedClient = null; return this.render(); }
         const jobs = Store.get('client_jobs_' + c.id, []);
-        const pendienteTotal = jobs.filter(j => j.estado === 'pendiente').reduce((a,j) => a + parseFloat(j.monto||0), 0);
-        const pagadoTotal    = jobs.filter(j => j.estado === 'pagado').reduce((a,j) => a + parseFloat(j.monto||0), 0);
+        const pendienteTotal = jobs.filter(j => j.estado === 'pendiente').reduce((a,j) => a + parseFloat(j.monto||0) - parseFloat(j.montoAbonado||0), 0);
+        const pagadoTotal    = jobs.filter(j => j.estado === 'pagado').reduce((a,j) => a + parseFloat(j.monto||0), 0)
+                             + jobs.filter(j => j.estado === 'pendiente').reduce((a,j) => a + parseFloat(j.montoAbonado||0), 0);
+
+        const weekGroups = {};
+        jobs.forEach((j, idx) => {
+            const wk = Utils.getWeekLabel(j.fecha) || 'Sin fecha';
+            if (!weekGroups[wk]) weekGroups[wk] = [];
+            weekGroups[wk].push({ ...j, _idx: idx });
+        });
+        const weekKeys = Object.keys(weekGroups).reverse();
 
         return `
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px" class="anim-1">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px" class="anim-1">
             <button onclick="ViewClientes.back()" style="width:36px;height:36px;border-radius:10px;background:var(--accent-soft);border:1px solid var(--glass-border);color:var(--accent-glow);cursor:pointer;display:flex;align-items:center;justify-content:center">
                 <span class="material-icons-outlined">arrow_back</span>
             </button>
@@ -1625,28 +1870,35 @@ const ViewClientes = {
         </div>
 
         <div class="card anim-3">
-            <div style="font-weight:700;font-size:15px;margin-bottom:12px">Planilla de Trabajos</div>
-            ${jobs.length === 0 ? `<div class="empty-state" style="padding:16px"><span class="empty-sub">Sin trabajos registrados</span></div>` 
-            : jobs.slice().reverse().map((j, ri) => {
-                const idx = jobs.length - 1 - ri;
-                return `
+            <div style="font-weight:700;font-size:14px;margin-bottom:10px">Trabajos por Semana</div>
+            ${jobs.length === 0 ? `<div class="empty-state" style="padding:16px"><span class="empty-sub">Sin trabajos registrados</span></div>`
+            : weekKeys.map(wk => `
+                <div style="margin:8px 0 6px;padding:5px 10px;background:rgba(45,125,210,0.1);border-radius:8px;font-size:11px;font-weight:700;color:var(--accent-glow);letter-spacing:0.5px">
+                    📅 ${wk}
+                </div>
+                ${weekGroups[wk].slice().reverse().map(j => {
+                    const abonado = parseFloat(j.montoAbonado || 0);
+                    const resta = parseFloat(j.monto || 0) - abonado;
+                    return `
                 <div class="job-entry">
                     <div class="job-left">
                         <div class="job-date">${Utils.dateLabel(j.fecha)}</div>
                         <div class="job-desc">${Utils.esc(j.descripcion)}</div>
+                        ${abonado > 0 && j.estado === 'pendiente' ? `<div style="font-size:11px;color:var(--warning);margin-top:2px">Abonado: ${Utils.fmtCurrency(abonado)} · Falta: ${Utils.fmtCurrency(resta)}</div>` : ''}
                     </div>
-                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
                         <span class="job-amount">${Utils.fmtCurrency(j.monto)}</span>
                         <div style="display:flex;gap:4px">
                             ${j.estado === 'pendiente' ? `
-                            <button onclick="ViewClientes.markPaid(${idx})" style="padding:4px 8px;border-radius:6px;background:rgba(34,197,94,0.1);color:var(--success);border:1px solid rgba(34,197,94,0.2);cursor:pointer;font-size:11px;font-family:var(--font-body)">✓ Pagado</button>` 
-                            : `<span class="chip chip-success">✓ Cobrado</span>`}
-                            <button onclick="ViewClientes.delJob(${idx})" style="width:26px;height:26px;border-radius:6px;background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);cursor:pointer;display:flex;align-items:center;justify-content:center">
+                            <button onclick="ViewClientes.abonarTrabajo(${j._idx})" style="padding:4px 8px;border-radius:6px;background:rgba(251,191,36,0.1);color:var(--gold);border:1px solid rgba(251,191,36,0.3);cursor:pointer;font-size:11px;font-family:var(--font-body)">💰 Abonar</button>`
+                            : `<span class="chip chip-success" style="font-size:10px">✓ Cobrado</span>`}
+                            <button onclick="ViewClientes.delJob(${j._idx})" style="width:26px;height:26px;border-radius:6px;background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);cursor:pointer;display:flex;align-items:center;justify-content:center">
                                 <span class="material-icons-outlined" style="font-size:13px">delete</span>
                             </button>
                         </div>
                     </div>
                 </div>`; }).join('')}
+            `).join('')}
         </div>
 
         <button class="btn btn-primary anim-4" onclick="ViewClientes.showAddJob()">
@@ -1735,6 +1987,15 @@ const ViewClientes = {
         const jobs = Store.get('client_jobs_' + c.id, []);
         jobs.push({ id: Utils.uid(), descripcion: desc, monto, fecha, estado });
         Store.set('client_jobs_' + c.id, jobs);
+        
+        // Si el usuario lo marca como pagado al crearlo, registrar el ingreso automáticamente
+        if (estado === 'pagado') {
+            const month = Utils.monthKey(); // O usar monthKey de 'fecha' si se desea
+            const ingresos = Store.get('ingresos_' + month, []);
+            ingresos.push({ desc: desc + ' — ' + c.nombre, monto, categoria: 'Cobro de trabajo', fecha: fecha || Utils.today() });
+            Store.set('ingresos_' + month, ingresos);
+        }
+        
         Modal.close();
         toast('Trabajo registrado', 'check');
         App.renderCurrentView();
@@ -1744,9 +2005,67 @@ const ViewClientes = {
         const clientes = Store.get('clientes', []);
         const c = clientes[this.selectedClient];
         const jobs = Store.get('client_jobs_' + c.id, []);
-        jobs[idx].estado = 'pagado';
+        const j = jobs[idx];
+        const pendiente = parseFloat(j.monto || 0) - parseFloat(j.montoAbonado || 0);
+        j.estado = 'pagado';
+        j.montoAbonado = j.monto;
         Store.set('client_jobs_' + c.id, jobs);
-        toast('¡Marcado como cobrado! 💰', 'check_circle');
+        if (pendiente > 0) {
+            const month = Utils.monthKey();
+            const ingresos = Store.get('ingresos_' + month, []);
+            ingresos.push({ desc: j.descripcion + ' — ' + c.nombre, monto: pendiente, categoria: 'Cobro de trabajo', fecha: Utils.today() });
+            Store.set('ingresos_' + month, ingresos);
+        }
+        toast('¡Cobrado! Ingreso registrado automáticamente 💰', 'check_circle');
+        App.renderCurrentView();
+    },
+
+    abonarTrabajo(idx) {
+        const clientes = Store.get('clientes', []);
+        const c = clientes[this.selectedClient];
+        const jobs = Store.get('client_jobs_' + c.id, []);
+        const j = jobs[idx];
+        const abonado = parseFloat(j.montoAbonado || 0);
+        const pendiente = parseFloat(j.monto || 0) - abonado;
+        Modal.show(`
+            <div class="modal-title">💰 Registrar Abono</div>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">
+                <strong>${Utils.esc(j.descripcion)}</strong><br>
+                Total: ${Utils.fmtCurrency(j.monto)} · Ya abonado: ${Utils.fmtCurrency(abonado)}<br>
+                <span style="color:var(--warning);font-weight:700">Pendiente: ${Utils.fmtCurrency(pendiente)}</span>
+            </p>
+            <div class="form-group">
+                <label class="form-label">Monto a Abonar ($)</label>
+                <input type="number" id="ab-trabajo-monto" placeholder="${Utils.fmt(pendiente)}" step="0.01" min="0.01" max="${Utils.fmt(pendiente)}">
+            </div>
+            <button class="btn btn-primary" onclick="ViewClientes.doAbonarTrabajo(${idx})">
+                <span class="material-icons-outlined">payments</span> Registrar Abono
+            </button>`);
+    },
+
+    doAbonarTrabajo(idx) {
+        const monto = parseFloat((Utils.el('ab-trabajo-monto') || {}).value || 0);
+        if (monto <= 0) { toast('Ingresa un monto válido', 'warning'); return; }
+        const clientes = Store.get('clientes', []);
+        const c = clientes[this.selectedClient];
+        const jobs = Store.get('client_jobs_' + c.id, []);
+        const j = jobs[idx];
+        const pendiente = parseFloat(j.monto || 0) - parseFloat(j.montoAbonado || 0);
+        if (monto > pendiente + 0.01) { toast('El abono supera el monto pendiente', 'warning'); return; }
+        j.montoAbonado = parseFloat(j.montoAbonado || 0) + monto;
+        if (j.montoAbonado >= j.monto - 0.01) {
+            j.montoAbonado = j.monto;
+            j.estado = 'pagado';
+            toast('🎉 ¡Trabajo cobrado completamente!', 'celebration');
+        } else {
+            toast(`Abono de ${Utils.fmtCurrency(monto)} registrado`, 'payments');
+        }
+        Store.set('client_jobs_' + c.id, jobs);
+        const month = Utils.monthKey();
+        const ingresos = Store.get('ingresos_' + month, []);
+        ingresos.push({ desc: j.descripcion + ' — ' + c.nombre, monto, categoria: 'Cobro de trabajo', fecha: Utils.today() });
+        Store.set('ingresos_' + month, ingresos);
+        Modal.close();
         App.renderCurrentView();
     },
 
@@ -2264,152 +2583,119 @@ const ViewHorarios = {
 };
 
 // ─────────────────────────────────────────────
-// MÓDULO 7: INGRESOS
+// MÓDULO 7: DISPONIBLE (Balance en tiempo real)
 // ─────────────────────────────────────────────
-const ViewIngresos = {
+const ViewDisponible = {
     render() {
-        const config  = Store.get('ingreso_config', null);
-        const month   = Utils.monthKey();
+        const month    = Utils.monthKey();
         const ingresos = Store.get('ingresos_' + month, []);
-        const total    = ingresos.reduce((a,i) => a + parseFloat(i.monto || 0), 0);
+        const gastos   = Store.get('gastos_' + month, []);
+        const weekStart = Utils.weekStart();
         const meses    = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Sep','Oct','Nov','Dic'];
         const now      = new Date();
 
+        const totalIngresoMes = ingresos.reduce((a,i) => a + parseFloat(i.monto || 0), 0);
+        const totalGastoMes   = gastos.reduce((a,g) => a + parseFloat(g.monto || 0), 0);
+        const totalIngresoSemana = ingresos
+            .filter(i => i.fecha && new Date(i.fecha + 'T00:00:00') >= weekStart)
+            .reduce((a,i) => a + parseFloat(i.monto || 0), 0);
+        const totalGastoSemana = gastos
+            .filter(g => g.fecha && new Date(g.fecha + 'T00:00:00') >= weekStart)
+            .reduce((a,g) => a + parseFloat(g.monto || 0), 0);
+        
+        const disponible = totalIngresoMes - totalGastoMes;
+        const disponibleSemana = totalIngresoSemana - totalGastoSemana;
+
         return `
         <div class="section-title anim-1">
-            <span class="material-icons-outlined">attach_money</span>
-            Mis Ingresos
+            <span class="material-icons-outlined">account_balance_wallet</span>
+            Mi Disponible
         </div>
 
-        ${!config ? `
-        <div class="card card-accent-top anim-2">
-            <div style="font-weight:700;font-size:16px;margin-bottom:12px">⚙️ Configurar Tarifa</div>
-            <div class="form-group">
-                <label class="form-label">¿A qué te dedicas?</label>
-                <select id="ing-oficio">
-                    <option>Refrigeración / Aire Acondicionado</option>
-                    <option>Construcción / Albañilería</option>
-                    <option>Electricidad</option>
-                    <option>Mecánica / Automotriz</option>
-                    <option>Plomería</option>
-                    <option>Carpintería</option>
-                    <option>Otro</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">¿Cuánto cobras por servicio/unidad? ($)</label>
-                <input type="number" id="ing-tarifa" placeholder="Ej: 30 por equipo de A/C" step="0.01" min="0">
-            </div>
-            <button class="btn btn-primary" onclick="ViewIngresos.saveConfig()">
-                <span class="material-icons-outlined">save</span> Guardar Configuración
-            </button>
-        </div>` : `
-        <div class="card anim-2" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
-            <div>
-                <div style="font-size:12px;color:var(--text-muted)">Tarifa configurada</div>
-                <div style="font-weight:700">${Utils.esc(config.oficio)} · ${Utils.fmtCurrency(config.tarifa)}/servicio</div>
-            </div>
-            <button onclick="Store.del('ingreso_config');App.navigate('ingresos')" style="padding:6px 10px;border-radius:8px;background:var(--accent-soft);color:var(--accent-glow);border:1px solid var(--glass-border);cursor:pointer;font-size:12px;font-family:var(--font-body)">Cambiar</button>
-        </div>`}
+        <div class="card ${disponible >= 0 ? 'card-gold-top' : 'card-danger-top'} anim-2" style="text-align:center;padding:22px">
+            <div class="label">Disponible Actual — ${meses[now.getMonth()]}</div>
+            <div style="font-family:var(--font-title);font-size:42px;font-weight:700;color:${disponible >= 0 ? 'var(--gold)' : 'var(--danger)'};margin:6px 0">${Utils.fmtCurrency(disponible)}</div>
+            <div style="font-size:12px;color:var(--text-muted)">Dinero real para gastar (Ingresos - Gastos)</div>
+        </div>
 
-        <div class="card card-success-top anim-3" style="text-align:center;padding:20px">
-            <div class="label">Total Ganado — ${meses[now.getMonth()]} ${now.getFullYear()}</div>
-            <div class="income-total">${Utils.fmtCurrency(total)}</div>
-            <div style="font-size:12px;color:var(--text-muted)">${ingresos.length} servicio(s) este mes</div>
+        <div style="display:flex;gap:10px;margin-bottom:14px" class="anim-3">
+            <div class="card" style="flex:1;text-align:center;padding:12px;margin-bottom:0">
+                <div class="label">Ing. Semana</div>
+                <div class="value success" style="font-size:17px">${Utils.fmtCurrency(totalIngresoSemana)}</div>
+            </div>
+            <div class="card" style="flex:1;text-align:center;padding:12px;margin-bottom:0">
+                <div class="label">Gastos Sem.</div>
+                <div class="value danger" style="font-size:17px">${Utils.fmtCurrency(totalGastoSemana)}</div>
+            </div>
         </div>
 
         <div class="card anim-4">
-            <div style="font-weight:700;font-size:15px;margin-bottom:12px">Registros del Mes</div>
-            ${ingresos.length === 0 ? `
-            <div class="empty-state" style="padding:16px">
-                <span class="empty-sub">Registra lo que cobraste hoy</span>
-            </div>` : ingresos.slice().reverse().map((ing, ri) => {
-                const i = ingresos.length - 1 - ri;
+            <div style="font-weight:700;font-size:14px;margin-bottom:14px">📊 Análisis Visual del Mes</div>
+            ${(() => {
+                const maxVal = Math.max(totalIngresoMes, totalGastoMes, 1);
+                const pctIng = Math.round((totalIngresoMes / maxVal) * 100);
+                const pctGas = Math.round((totalGastoMes  / maxVal) * 100);
+                const pctDis = disponible >= 0 ? Math.round((disponible / maxVal) * 100) : 0;
+                const efic   = totalIngresoMes > 0 ? Math.round(((totalIngresoMes - totalGastoMes) / totalIngresoMes) * 100) : 0;
                 return `
+                <div style="margin-bottom:12px">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
+                        <span style="color:var(--success);font-weight:600">💰 Ingresos</span>
+                        <span style="font-weight:700;color:var(--success)">${Utils.fmtCurrency(totalIngresoMes)}</span>
+                    </div>
+                    <div style="height:20px;background:rgba(255,255,255,0.05);border-radius:10px;overflow:hidden">
+                        <div style="height:100%;width:${pctIng}%;background:linear-gradient(90deg,#10b981,#34d399);border-radius:10px;transition:width 0.8s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
+                            <span style="font-size:10px;font-weight:800;color:#fff">${pctIng}%</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom:12px">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
+                        <span style="color:var(--danger);font-weight:600">📉 Gastos</span>
+                        <span style="font-weight:700;color:var(--danger)">${Utils.fmtCurrency(totalGastoMes)}</span>
+                    </div>
+                    <div style="height:20px;background:rgba(255,255,255,0.05);border-radius:10px;overflow:hidden">
+                        <div style="height:100%;width:${pctGas}%;background:linear-gradient(90deg,#ef4444,#f87171);border-radius:10px;transition:width 0.8s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
+                            <span style="font-size:10px;font-weight:800;color:#fff">${pctGas}%</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom:16px">
+                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
+                        <span style="color:var(--gold);font-weight:600">💵 Disponible</span>
+                        <span style="font-weight:700;color:${disponible>=0?'var(--gold)':'var(--danger)'}">${Utils.fmtCurrency(disponible)}</span>
+                    </div>
+                    <div style="height:20px;background:rgba(255,255,255,0.05);border-radius:10px;overflow:hidden">
+                        <div style="height:100%;width:${pctDis}%;background:linear-gradient(90deg,#f59e0b,#fbbf24);border-radius:10px;transition:width 0.8s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
+                            <span style="font-size:10px;font-weight:800;color:#fff">${pctDis}%</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(${efic>=50?'34,197,94':'239,68,68'},0.08);border-radius:12px;border:1px solid rgba(${efic>=50?'34,197,94':'239,68,68'},0.2)">
+                    <span style="font-size:13px;color:var(--text-secondary)">Eficiencia financiera</span>
+                    <span style="font-size:20px;font-weight:900;color:${efic>=50?'var(--success)':'var(--danger)'}">${efic}%</span>
+                </div>`;
+            })()}
+        </div>
+
+        <div class="card anim-5">
+            <div style="font-weight:700;font-size:14px;margin-bottom:10px">📜 Actividad de Cobros</div>
+            ${ingresos.length === 0 ? `<div class="empty-state" style="padding:14px"><span class="empty-sub">No hay cobros registrados aún</span></div>`
+            : ingresos.slice().reverse().slice(0,5).map(i => `
             <div class="list-item">
                 <div class="list-item-icon" style="background:rgba(34,197,94,0.1);color:var(--success)">
                     <span class="material-icons-outlined">payments</span>
                 </div>
                 <div class="list-item-content">
-                    <div class="list-item-title">${Utils.esc(ing.desc)}</div>
-                    <div class="list-item-sub">${Utils.esc(ing.categoria || '')} · ${Utils.dateLabel(ing.fecha)}</div>
+                    <div class="list-item-title">${Utils.esc(i.desc)}</div>
+                    <div class="list-item-sub">${Utils.dateLabel(i.fecha)}</div>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                    <span style="font-weight:700;color:var(--success)">${Utils.fmtCurrency(ing.monto)}</span>
-                    <button onclick="ViewIngresos.del(${i})" style="width:28px;height:28px;border-radius:8px;background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);cursor:pointer;display:flex;align-items:center;justify-content:center">
-                        <span class="material-icons-outlined" style="font-size:14px">delete</span>
-                    </button>
+                <div class="list-item-right">
+                    <span style="font-weight:700;color:var(--success)">+${Utils.fmtCurrency(i.monto)}</span>
                 </div>
-            </div>`; }).join('')}
-        </div>
-
-        <button class="btn btn-success anim-5" onclick="ViewIngresos.showAdd()">
-            <span class="material-icons-outlined">add</span> Registrar Cobro de Hoy
-        </button>`;
-    },
-
-    saveConfig() {
-        const oficio  = (Utils.el('ing-oficio') || {}).value;
-        const tarifa  = parseFloat((Utils.el('ing-tarifa') || {}).value || 0);
-        if (tarifa <= 0) { toast('Ingresa tu tarifa por servicio', 'warning'); return; }
-        Store.set('ingreso_config', { oficio, tarifa });
-        toast('Tarifa guardada', 'check');
-        App.navigate('ingresos');
-    },
-
-    showAdd() {
-        const config = Store.get('ingreso_config', null);
-        Modal.show(`
-            <div class="modal-title">💵 Registrar Cobro</div>
-            <div class="form-group">
-                <label class="form-label">¿Qué hiciste hoy?</label>
-                <select id="ing-tipo">
-                    <option>Instalación de A/C</option>
-                    <option>Mantenimiento de equipo</option>
-                    <option>Reparación</option>
-                    <option>Trabajo de construcción</option>
-                    <option>Instalación eléctrica</option>
-                    <option>Servicio mecánico</option>
-                    <option>Plomería</option>
-                    <option>Otro servicio</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Descripción</label>
-                <input type="text" id="ing-desc" placeholder="Ej: Instalé un A/C en el sector Las Mercedes">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Monto cobrado ($)</label>
-                <input type="number" id="ing-monto" placeholder="${config ? Utils.fmt(config.tarifa) : '0.00'}" step="0.01" min="0" value="${config ? config.tarifa : ''}">
-            </div>
-            <button class="btn btn-success" onclick="ViewIngresos.save()">
-                <span class="material-icons-outlined">payments</span> Guardar Cobro
-            </button>`);
-    },
-
-    save() {
-        const tipo  = (Utils.el('ing-tipo') || {}).value;
-        const desc  = (Utils.el('ing-desc') || {}).value?.trim();
-        const monto = parseFloat((Utils.el('ing-monto') || {}).value || 0);
-        if (!desc || monto <= 0) { toast('Completa descripción y monto', 'warning'); return; }
-        const month = Utils.monthKey();
-        const ingresos = Store.get('ingresos_' + month, []);
-        ingresos.push({ desc: desc || tipo, monto, categoria: tipo, fecha: Utils.today() });
-        Store.set('ingresos_' + month, ingresos);
-        Modal.close();
-        toast(`¡Cobro de ${Utils.fmtCurrency(monto)} registrado! 💪`, 'payments');
-        App.navigate('ingresos');
-    },
-
-    del(idx) {
-        Modal.confirm('¿Eliminar este cobro?', () => {
-            const month = Utils.monthKey();
-            const ingresos = Store.get('ingresos_' + month, []);
-            ingresos.splice(idx, 1);
-            Store.set('ingresos_' + month, ingresos);
-            toast('Registro eliminado', 'delete');
-            App.navigate('ingresos');
-        });
+            </div>`).join('')}
+            <button class="btn btn-sm btn-primary" onclick="App.navigate('clientes')" style="margin-top:10px;width:100%">Ir a Clientes</button>
+        </div>`;
     }
 };
 
@@ -2419,15 +2705,16 @@ const ViewIngresos = {
 const App = {
     currentView: 'home',
     views: {
-        home:     ViewHome,
-        scanner:  ViewScanner,
-        gastos:   ViewGastos,
-        clientes: ViewClientes,
-        creditos: ViewCreditos,
-        ahorros:  ViewAhorros,
-        horarios: ViewHorarios,
-        ingresos: ViewIngresos
+        home:       ViewHome,
+        scanner:    ViewScanner,
+        gastos:     ViewGastos,
+        clientes:   ViewClientes,
+        creditos:   ViewCreditos,
+        ahorros:    ViewAhorros,
+        horarios:   ViewHorarios,
+        disponible: ViewDisponible
     },
+
 
     init() {
         // Update date display
@@ -2534,24 +2821,41 @@ const App = {
         // Notifications
         Notif.init();
 
-        // Auto-month cleanup check
+        // Detectar inicio de nuevo mes y nueva semana
         this.checkMonthReset();
+        this.checkWeekReset();
 
-        // Automatic Data Retention Sweep (1mo Mercado / 4mo Universidad)
+        // Limpieza automática de facturas expiradas
         this.cleanupExpiredFacturas();
 
-        // Show home
+        // Mostrar inicio
         this.navigate('home');
     },
 
     checkMonthReset() {
         const lastMonth = Store.get('last_month_check', null);
         const currentMonth = Utils.monthKey();
+        const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Sep','Oct','Nov','Dic'];
+        const now = new Date();
         if (lastMonth && lastMonth !== currentMonth) {
-            // New month – data naturally lives under new monthKey
-            toast(`¡Nuevo mes! ${currentMonth} empieza fresh 🌟`, 'calendar_month');
+            // Nuevo mes: los datos viven bajo la nueva monthKey automáticamente
+            // No hay que borrar nada, el sistema usa claves separadas por mes
+            setTimeout(() => toast(`🗓️ ¡Nuevo mes! ${meses[now.getMonth()]} empieza de cero`, 'calendar_month'), 800);
         }
         Store.set('last_month_check', currentMonth);
+    },
+
+    checkWeekReset() {
+        const lastWeek = Store.get('last_week_check', null);
+        const currentWeek = Utils.weekKey();
+        if (lastWeek && lastWeek !== currentWeek) {
+            // Nueva semana: los ingresos semanales se recalculan automáticamente
+            // por filtro de fecha en weekStart(), no hay que borrar nada
+            const weekStartDate = Utils.weekStart();
+            const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+            setTimeout(() => toast(`📅 ¡Nueva semana! Ing. semanal reiniciado`, 'today'), 1200);
+        }
+        Store.set('last_week_check', currentWeek);
     },
 
     cleanupExpiredFacturas() {
@@ -2561,8 +2865,10 @@ const App = {
         // Loop through all keys in localStorage to find facturas_*
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key.startsWith('facturas_')) {
-                let facturas = Store.get(key, []);
+            if (key.startsWith('velo_facturas_')) {
+                // Store usa prefijo 'velo_', quitarlo para pasarlo a Store.get
+                const storeKey = key.replace('velo_', '');
+                let facturas = Store.get(storeKey, []);
                 const originalLength = facturas.length;
                 
                 // Keep only those that haven't expired
@@ -2573,7 +2879,7 @@ const App = {
 
                 if (facturas.length !== originalLength) {
                     purgedCount += (originalLength - facturas.length);
-                    Store.set(key, facturas);
+                    Store.set(storeKey, facturas);
                 }
             }
         }
@@ -2628,6 +2934,104 @@ const App = {
             console.warn('Error fetching rate, using fallback:', e);
             return Store.get('bcv_rate', 48.00);
         }
+    },
+
+    // ══════════════════════════════════════════════
+    // BACKUP Y RESTAURACIÓN DE DATOS
+    // ══════════════════════════════════════════════
+    exportBackup() {
+        try {
+            const backup = {};
+            const prefix = 'velo_';
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(prefix)) {
+                    try {
+                        backup[key] = JSON.parse(localStorage.getItem(key));
+                    } catch {
+                        backup[key] = localStorage.getItem(key);
+                    }
+                }
+            }
+
+            if (Object.keys(backup).length === 0) {
+                toast('No hay datos para exportar', 'warning');
+                return;
+            }
+
+            const payload = JSON.stringify({
+                version: '2.0',
+                exportedAt: new Date().toISOString(),
+                data: backup
+            }, null, 2);
+
+            const blob = new Blob([payload], { type: 'application/json' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            const date = new Date().toISOString().split('T')[0];
+            a.href     = url;
+            a.download = `veloapp-backup-${date}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast('✅ Backup exportado exitosamente', 'download');
+        } catch (e) {
+            console.error('Export error:', e);
+            toast('Error al exportar: ' + e.message, 'error');
+        }
+    },
+
+    importBackup() {
+        const input = document.createElement('input');
+        input.type  = 'file';
+        input.accept = '.json,application/json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const parsed = JSON.parse(ev.target.result);
+
+                    // Validar estructura del backup
+                    if (!parsed.data || typeof parsed.data !== 'object') {
+                        toast('Archivo de backup inválido', 'error');
+                        return;
+                    }
+
+                    const keys = Object.keys(parsed.data).filter(k => k.startsWith('velo_'));
+                    if (keys.length === 0) {
+                        toast('No se encontraron datos en el backup', 'warning');
+                        return;
+                    }
+
+                    Modal.confirm(
+                        `¿Restaurar backup del ${parsed.exportedAt ? new Date(parsed.exportedAt).toLocaleDateString('es-VE') : 'archivo'}? Se restaurarán ${keys.length} registros. Los datos actuales se conservan si no hay conflicto.`,
+                        () => {
+                            let count = 0;
+                            keys.forEach(key => {
+                                try {
+                                    localStorage.setItem(key, JSON.stringify(parsed.data[key]));
+                                    count++;
+                                } catch (err) {
+                                    console.warn('Error restaurando clave:', key, err);
+                                }
+                            });
+                            toast(`✅ ${count} registros restaurados. Recargando...`, 'upload');
+                            setTimeout(() => location.reload(), 1500);
+                        }
+                    );
+                } catch (err) {
+                    console.error('Import error:', err);
+                    toast('Error al leer el archivo: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        };
+        document.body.appendChild(input);
+        input.click();
+        document.body.removeChild(input);
     }
 };
 
@@ -2659,5 +3063,5 @@ document.addEventListener('DOMContentLoaded', () => {
     window.ViewCreditos = ViewCreditos;
     window.ViewAhorros  = ViewAhorros;
     window.ViewHorarios = ViewHorarios;
-    window.ViewIngresos = ViewIngresos;
+    window.ViewDisponible = ViewDisponible;
 });
